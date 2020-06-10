@@ -49,21 +49,38 @@ namespace Fed_Garrisons
             }
         }
 
-        private static void Postfix(Town town, ref float __result)
+        private static void Postfix(Town town, ref StatExplainer explanation, ref float __result)
         {
             try
             {
+                Log("\n");
+                Log(town.Name);
+                Log(new string('-', 10));
                 if (town.IsUnderSiege)
                 {
-                    Log($"{town.Name} under siege: {__result} food");
+                    Log($"under siege: {__result} food");
                     return;
                 }
 
                 var garrisonParty = town.GarrisonParty;
                 var troops = garrisonParty?.Party.NumberOfAllMembers ?? 0;
                 var food = -troops / 20;
-                __result = 0;
-                Log($"{town.Name} not under siege, garrison wages include food, {__result} used ({-troops} saved)");
+                Log($"{troops} troops food impact {food}");
+                Log($"original total food cost {__result}, modified to remove troop food costs {__result - food}");
+                __result -= food;
+                Log($"not under siege, {__result} used ({-food} saved)");
+                if (explanation == null)
+                {
+                    return;
+                }
+
+                for (var i = 0; i < explanation.Lines.Count; i++)
+                {
+                    if (explanation.Lines[i].Name.Contains("Garrison"))
+                    {
+                        explanation.Lines[i] = new StatExplainer.ExplanationLine("Garrison (free) ", 0f, StatExplainer.OperationType.Add);
+                    }
+                }
             }
             catch (Exception e)
             {
