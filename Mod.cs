@@ -1,6 +1,7 @@
 ﻿using System;
 using HarmonyLib;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.SandBox;
 using TaleWorlds.CampaignSystem.SandBox.GameComponents;
 using TaleWorlds.MountAndBlade;
 
@@ -22,10 +23,12 @@ namespace Fed_Garrisons
             try
             {
                 //Harmony.DEBUG = true;
-                FileLog.Log("\n");
                 Log("Startup " + DateTime.Now.ToShortTimeString());
-                ManualPatches();
                 //Harmony.DEBUG = false;
+                var OnGameStartMi = AccessTools.Method(typeof(SandBoxManager), "OnGameStart", new[] {typeof(CampaignGameStarter)});
+                var onGameStartPostfix = AccessTools.Method(typeof(Mod), nameof(OnGameStartPostfix));
+                Trace("Patching OnGameStart");
+                harmony.Patch(OnGameStartMi, null, new HarmonyMethod(onGameStartPostfix));
             }
             catch (Exception e)
             {
@@ -33,15 +36,25 @@ namespace Fed_Garrisons
             }
         }
 
-        private static void ManualPatches()
+        private static void Trace(object input)
+        {
+            //FileLog.Log($"[Fed Garrisons] {input ?? "null"}");
+        }
+
+        private static void Log(object input)
+        {
+            //FileLog.Log($"[Fed Garrisons] {input ?? "null"}");
+        }
+
+        private static void OnGameStartPostfix()
         {
             try
             {
-                var CalculateTownFoodStocksChangeMi = AccessTools.Method(typeof(DefaultSettlementFoodModel),
+                var calculateTownFoodStocksChangeMi = AccessTools.Method(typeof(DefaultSettlementFoodModel),
                     "CalculateTownFoodStocksChange", new[] {typeof(Town), typeof(StatExplainer)});
-                var postfix = AccessTools.Method(typeof(Mod), nameof(Postfix));
-                Log("Patching CalculateTownFoodStocksChange");
-                harmony.Patch(CalculateTownFoodStocksChangeMi, null, new HarmonyMethod(postfix));
+                var calculateTownFoodStocksChangePostfix = AccessTools.Method(typeof(Mod), nameof(CalculateTownFoodStocksChangePostfix));
+                Trace("Patching CalculateTownFoodStocksChange");
+                harmony.Patch(calculateTownFoodStocksChangeMi, null, new HarmonyMethod(calculateTownFoodStocksChangePostfix));
             }
             catch (Exception e)
             {
@@ -49,26 +62,26 @@ namespace Fed_Garrisons
             }
         }
 
-        private static void Postfix(Town town, ref StatExplainer explanation, ref float __result)
+        private static void CalculateTownFoodStocksChangePostfix(Town town, ref StatExplainer explanation, ref float __result)
         {
             try
             {
-                Log("\n");
-                Log(town.Name);
-                Log(new string('-', 10));
+                Trace("\n");
+                Trace(town.Name);
+                Trace(new string('-', 10));
                 if (town.IsUnderSiege)
                 {
-                    Log($"under siege: {__result} food");
+                    Trace($"under siege: {__result} food");
                     return;
                 }
 
                 var garrisonParty = town.GarrisonParty;
                 var troops = garrisonParty?.Party.NumberOfAllMembers ?? 0;
                 var food = -troops / 20;
-                Log($"{troops} troops food impact {food}");
-                Log($"original total food cost {__result}, modified to remove troop food costs {__result - food}");
+                Trace($"{troops} troops food impact {food}");
+                Trace($"original total food cost {__result}, modified to remove troop food costs {__result - food}");
                 __result -= food;
-                Log($"not under siege, {__result} used ({-food} saved)");
+                Trace($"not under siege, {__result} used ({-food} saved)");
                 if (explanation == null)
                 {
                     return;
@@ -86,11 +99,6 @@ namespace Fed_Garrisons
             {
                 Log(e);
             }
-        }
-
-        private static void Log(object input)
-        {
-            //FileLog.Log($"[Fed Garrisons] {input ?? "null"}");
         }
     }
 }
